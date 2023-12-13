@@ -28,15 +28,12 @@ uniform Light light;
 float PCFShadowCalculation(vec4 fragPosLightSpace, float bias)
 {
     // perform perspective divide
+    float distance = fragPosLightSpace.z;
     vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
 
     if (projCoords.z > 1.0) return 0.0;    // 超出视锥剪裁范围时，深度图采样的 GL_CLAMP_TO_BORDER 不起作用，所以需要在这里检查
 
-    // transform to [0,1] range
-    projCoords = projCoords * 0.5 + 0.5;
-
-    // get depth of current fragment from light's perspective
-    float currentDepth = projCoords.z;
+    projCoords = projCoords * 0.5 + 0.5;        // [-1, 1] -> [0, 1]
 
     float shadow = 0.0;
     vec2 texelSize = 1.0 / textureSize(shadowMap, 0);
@@ -44,16 +41,16 @@ float PCFShadowCalculation(vec4 fragPosLightSpace, float bias)
     {
         for (int y = -1; y <= 1; y++)
         {
-            float depth = texture(shadowMap, projCoords.xy + vec2(x, y) * texelSize).r;
+            float depth = texture(shadowMap, projCoords.xy + vec2(x, y) * texelSize).r;         // [0, 1]
             if (perspective)
             {
                 // 转换为线性深度值
-                depth = depth * 2.0 - 1.0;
+                depth = depth * 2.0 - 1.0;  // [0, 1] -> [-1, 1]
                 depth = (2.0 * near * far) / (far + near - depth * (far - near));
-                depth = depth / far;
+                shadow += distance > depth - near ? 1.0 : 0.0;
+            } else {
+                shadow += projCoords.z - bias > depth ? 1.0 : 0.0;
             }
-
-            shadow += currentDepth - bias > depth  ? 1.0 : 0.0;
         }
     }
     return shadow /= 9.0;

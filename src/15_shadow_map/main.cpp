@@ -39,6 +39,8 @@ const unsigned int SCR_HEIGHT = 1620;
 const unsigned int SHADOW_WIDTH = 1024 * 2;
 const unsigned int SHADOW_HEIGHT = 1024 * 2;
 
+const float orthoLightNear = 1.0f;
+const float orthoLightFar = 20.0f;
 const float perspectiveLightNear = 1.0f;
 const float perspectiveLightFar = 30.0f;
 
@@ -97,7 +99,7 @@ int main()
     view = glm::rotate(view, float(glm::radians(60.0)), glm::vec3(0.0f, 1.0f, 0.0f));
 
     glm::vec3 lightDir = glm::vec3(-1.8f, 1.5f, -1.0f) * 5.0f;
-    glm::mat4 orthoLightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, 1.0f, 20.0f);
+    glm::mat4 orthoLightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, orthoLightNear, orthoLightFar);
     glm::mat4 perspectiveLightProjection = glm::perspective(glm::radians(60.0f), 1.0f, perspectiveLightNear, perspectiveLightFar);
     glm::mat4 lightView = glm::lookAt(lightDir, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
     
@@ -237,7 +239,7 @@ int main()
         glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
         glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
         glClear(GL_DEPTH_BUFFER_BIT);
-        glCullFace(GL_FRONT);                   // 使用正面剔除，来解决封闭几何体阴影（失真或悬浮）和问题
+        // glCullFace(GL_FRONT);                   // 使用正面剔除，来解决封闭几何体阴影（失真或悬浮）和问题
     
         glm::mat lightProjection = perspectiveLight ? perspectiveLightProjection : orthoLightProjection;
         glm::mat4 lightVP = lightProjection * lightView;
@@ -262,8 +264,13 @@ int main()
 
         glBindBuffer(GL_UNIFORM_BUFFER, uboLightCamera);
         glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(bool), &perspectiveLight);
-        glBufferSubData(GL_UNIFORM_BUFFER, sizeof(float), sizeof(float), &perspectiveLightNear);
-        glBufferSubData(GL_UNIFORM_BUFFER, sizeof(float) + sizeof(float), sizeof(float), &perspectiveLightFar);
+        if (perspectiveLight){
+            glBufferSubData(GL_UNIFORM_BUFFER, sizeof(float), sizeof(float), &perspectiveLightNear);
+            glBufferSubData(GL_UNIFORM_BUFFER, sizeof(float) + sizeof(float), sizeof(float), &perspectiveLightFar);
+        } else {
+            glBufferSubData(GL_UNIFORM_BUFFER, sizeof(float), sizeof(float), &orthoLightNear);
+            glBufferSubData(GL_UNIFORM_BUFFER, sizeof(float) + sizeof(float), sizeof(float), &orthoLightFar);
+        }
         glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
         // 渲染平面
